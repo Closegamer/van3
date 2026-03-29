@@ -1,9 +1,16 @@
 /**
- * Импорт строк из completed.txt в таблицу yxxxxxx (PostgreSQL).
+ * Импорт строк из completed.txt в PostgreSQL:
+ *   - таблица yxxxxxx (каждая строка файла — line_text);
+ *   - опционально van_ranges (ключи длиной X для run_van.ps1, статус completed).
+ *
  * Подключение из .env: VAN_DB_HOST, VAN_DB_PORT, VAN_DB_NAME, VAN_DB_USER, VAN_DB_PASSWORD
  *
  *   node scripts/import_completed_to_yxxxxxx.mjs
  *   node scripts/import_completed_to_yxxxxxx.mjs --file path/to/completed.txt
+ *   node scripts/import_completed_to_yxxxxxx.mjs --van-ranges
+ *   node scripts/import_completed_to_yxxxxxx.mjs --van-ranges --x-length 6
+ *
+ * VAN_IMPORT_WORKER_ID — worker_id для строк van_ranges (по умолчанию completed-txt-import).
  */
 import fs from "fs";
 import path from "path";
@@ -36,9 +43,19 @@ function loadEnvFile(filePath) {
 loadEnvFile(path.join(root, ".env"));
 
 let fileArg = path.join(root, "completed.txt");
+let vanRanges = false;
+let xLength = 6;
 for (let i = 2; i < process.argv.length; i++) {
   if (process.argv[i] === "--file" && process.argv[i + 1]) {
     fileArg = path.resolve(process.argv[++i]);
+  } else if (process.argv[i] === "--van-ranges") {
+    vanRanges = true;
+  } else if (process.argv[i] === "--x-length" && process.argv[i + 1]) {
+    xLength = parseInt(process.argv[++i], 10);
+    if (Number.isNaN(xLength) || xLength < 1 || xLength > 32) {
+      console.error("--x-length: ожидается число от 1 до 32");
+      process.exit(1);
+    }
   }
 }
 
@@ -100,6 +117,11 @@ await client.query(`
 CREATE INDEX IF NOT EXISTS ix_yxxxxxx_imported_at ON yxxxxxx (imported_at);
 `);
 
+const hexKeyRe = new RegExp(`^[0-9A-F]{${xLength}}$`, "i");
+const vanWorkerId =
+  (process.env.VAN_IMPORT_WORKER_ID || "completed-txt-import").trim().slice(0, 128) ||
+  "completed-txt-import";
+
 let inserted = 0;
 let skipped = 0;
 for (const line of lines) {
@@ -117,8 +139,51 @@ for (const line of lines) {
   }
 }
 
+let vanInserted = 0;
+if (vanRanges) {
+  const seen = new Set();
+  const keys = [];
+  for (const line of lines) {
+    const u = line.trim().toUpperCase();
+    if (!hexKeyRe.test(u) || seen.has(u)) continue;
+    seen.add(u);
+    keys.push(u);
+  }
+
+  await client.query(`
+CREATE TABLE IF NOT EXISTS van_ranges (
+    range_key VARCHAR(32) NOT NULL PRIMARY KEY,
+    status VARCHAR(20) NOT NULL,
+    prefix_index INT NOT NULL DEFAULT 0,
+    worker_id VARCHAR(128) NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+);
+`);
+  await client.query(`
+CREATE INDEX IF NOT EXISTS ix_van_ranges_status ON van_ranges (status);
+`);
+
+  const chunk = 1500;
+  for (let i = 0; i < keys.length; i += chunk) {
+    const part = keys.slice(i, i + chunk);
+    const r = await client.query(
+      `INSERT INTO van_ranges (range_key, status, prefix_index, worker_id)
+       SELECT UPPER(trim(x)), 'completed', 0, $2::varchar(128)
+       FROM unnest($1::text[]) AS t(x)
+       ON CONFLICT (range_key) DO NOTHING`,
+      [part, vanWorkerId]
+    );
+    vanInserted += r.rowCount ?? 0;
+  }
+}
+
 await client.end();
 
 console.log(
-  `Импорт завершён: добавлено ${inserted}, уже были (пропуск) ${skipped}, всего строк в файле ${lines.length}.`
+  `Импорт yxxxxxx: добавлено ${inserted}, пропуск (уже были) ${skipped}, строк в файле ${lines.length}.`
 );
+if (vanRanges) {
+  console.log(
+    `Импорт van_ranges (completed, длина ключа ${xLength}): вставлено новых ${vanInserted} (конфликт — без изменений).`
+  );
+}

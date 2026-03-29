@@ -47,6 +47,20 @@ node scripts/import_completed_to_yxxxxxx.mjs --file completed.txt
 
 Из PowerShell: `.\Import-CompletedToYxxxxxx.ps1` (по умолчанию `completed.txt` в каталоге проекта).
 
+### Первый запуск с общей БД (`run_van.ps1` + Postgres)
+
+Чтобы воркеры **не брали заново** уже пройденные X из файла, те же строки нужно занести в **`van_ranges`** со статусом **`completed`** (длина ключа по умолчанию **6** hex-символов, как `XLength` в `run_van.ps1`):
+
+```bash
+npm run import-completed -- --van-ranges
+# или
+node scripts/import_completed_to_yxxxxxx.mjs --file completed.txt --van-ranges
+```
+
+PowerShell: `.\Import-CompletedToYxxxxxx.ps1 -VanRanges`
+
+Другая длина X: `--x-length 6`. Поле `worker_id` в БД: переменная **`VAN_IMPORT_WORKER_ID`** (по умолчанию `completed-txt-import`). Уже существующие ключи не перезаписываются (`ON CONFLICT DO NOTHING`; чужой `in_progress` не трогаем).
+
 Подключение те же переменные, что для `run_van.ps1`: `VAN_DB_*` в `.env`.
 
 ## GitHub Actions (CI/CD)
