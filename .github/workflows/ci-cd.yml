@@ -145,6 +145,7 @@ jobs:
                 exit 1
               fi
               if ! docker compose --env-file .env.docker up -d --remove-orphans; then
+                echo "::error::Если в логе выше есть 'port is already allocated' — на хосте занят порт из VAN_POSTGRES_PUBLISH (часто 5432). В Secrets задайте другой, напр. VAN_POSTGRES_PUBLISH=55432; в .env для run_van — VAN_DB_PORT=55432. Проверка: ss -tlnp | grep -E '5432|55432'"
                 echo "=== memory / disk ==="
                 free -h 2>/dev/null || true
                 df -h 2>/dev/null | head -20 || true

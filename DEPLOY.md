@@ -104,6 +104,8 @@ node scripts/import_completed_to_yxxxxxx.mjs --file completed.txt
 5. **`DEPLOY_APP_DIR`:** только **абсолютный** путь (начинается с `/`). Деплой сам выполняет `mkdir -p` для родителя (например для `/home/deploy/apps/van3` создаётся `.../apps`). Пользователь SSH должен иметь право писать туда; надёжный вариант — каталог **в home**, например `/home/deploy/apps/van3`. Путь вида `/opt/van3` без прав у пользователя на `/opt` даст ошибку — тогда один раз на сервере: `sudo mkdir -p /opt/van3 && sudo chown deploy:deploy /opt/van3` (подставьте своего пользователя).
 6. **Первый деплой:** запушьте в `main` или запустите workflow вручную (**Actions** → **CI/CD** → **Run workflow**).
 
+**Ошибка деплоя `port is already allocated`:** на ВМ уже что-то слушает тот же **хостовый** порт, что в секрете **`VAN_POSTGRES_PUBLISH`** (часто **5432**). Поменяйте секрет на свободный, например **`55432`**, перезапустите workflow. На всех машинах с `run_van.ps1` в `.env` выставьте **`VAN_DB_PORT=55432`** (тот же номер). На сервере: `ss -tlnp | grep 5432` — кто занял порт.
+
 После деплоя на машине с `run_van.ps1` в `.env` укажите `VAN_DB_HOST` (IP/DNS сервера), `VAN_DB_PORT` (как опубликован Postgres, см. `VAN_POSTGRES_PUBLISH`), `VAN_DB_PASSWORD` = тот же пароль, что в секрете **`VAN_POSTGRES_PASSWORD`** (он же попадает в `POSTGRES_PASSWORD` в контейнере).
 
 ### Несколько машин (воркеры) и одна база

@@ -40,7 +40,7 @@ PowerShell-оркестратор `run_van.ps1`, учёт диапазонов �
 | `VAN_POSTGRES_USER` | Обычно `vanuser` |
 | `VAN_POSTGRES_PASSWORD` | Пароль суперпользователя БД в контейнере |
 | `VAN_POSTGRES_DB` | Обычно `vandb` |
-| `VAN_POSTGRES_PUBLISH` | Порт хоста, например `5432` или `55432`, если `5432` занят |
+| `VAN_POSTGRES_PUBLISH` | Порт **хоста** для Postgres (например `5432`). Если на сервере уже слушает другой Postgres — **другой порт**, напр. `55432`, и тот же порт в `VAN_DB_PORT` в `.env` у воркеров |
 
 На сервере нужны **Git** и **Docker Compose v2** (`docker compose`).
 
