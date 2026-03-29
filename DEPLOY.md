@@ -59,11 +59,21 @@ node scripts/import_completed_to_yxxxxxx.mjs --file completed.txt
 ### Чеклист настройки
 
 1. **Сервер:** установлены **Git** (`apt install git`), **Docker** и плагин Compose v2 (`docker compose`). Пользователь из `DEPLOY_USER` может писать в `DEPLOY_APP_DIR` и выполнять **`docker info`** без sudo (иначе CI падает с ошибкой про Docker: `sudo usermod -aG docker <имя_пользователя>`, затем новый сеанс SSH).
-2. **SSH / ключ без passphrase (рекомендуется для Actions):** на своём ПК в корне репозитория уже можно сгенерировать отдельную пару только для CI (файлы в `.gitignore`):
+2. **SSH / ключ без passphrase (рекомендуется для Actions):** на своём ПК в корне репозитория сгенерируйте пару (файлы в `.gitignore`):
+
+   **Linux / macOS / Git Bash (Windows):**
 
    ```bash
    ssh-keygen -q -t ed25519 -f .van3-github-ci-deploy -C "van3-github-actions" -N ""
    ```
+
+   **Windows PowerShell:** встроенный `ssh-keygen` часто не принимает пустой `-N`; используйте **Git Bash**:
+
+   ```bash
+   "C:\Program Files\Git\bin\bash.exe" -lc "ssh-keygen -q -t ed25519 -f /c/путь/к/van3/.van3-github-ci-deploy -N '' -C 'van3-github-actions'"
+   ```
+
+   Проверка, что ключа нет пароля (не должно спрашивать passphrase): `ssh-keygen -y -f .van3-github-ci-deploy`
 
    - **Публичный** ключ (одна строка из `.van3-github-ci-deploy.pub`) добавьте на сервер в `~/.ssh/authorized_keys` пользователя деплоя (например `deploy`), владелец каталога `.ssh` и права `700` на `.ssh`, `600` на `authorized_keys`:
 
@@ -71,6 +81,12 @@ node scripts/import_completed_to_yxxxxxx.mjs --file completed.txt
    mkdir -p ~/.ssh && chmod 700 ~/.ssh
    echo 'ssh-ed25519 AAAA...your.public.key... van3-github-actions' >> ~/.ssh/authorized_keys
    chmod 600 ~/.ssh/authorized_keys
+   ```
+
+   Проверка с ПК (если всё равно просит passphrase — клиент берёт **другой** ключ из агента; укажите файл и отключите лишние):
+
+   ```bash
+   ssh -i .van3-github-ci-deploy -o IdentitiesOnly=yes deploy@СЕРВЕР
    ```
 
    - **Приватный** ключ: откройте файл `.van3-github-ci-deploy`, скопируйте целиком (включая `BEGIN` / `END`) в секрет **`DEPLOY_SSH_KEY`**. Секрет **`DEPLOY_SSH_KEY_PASSPHRASE`** не создавайте.
