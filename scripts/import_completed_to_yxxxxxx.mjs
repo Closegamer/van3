@@ -59,14 +59,14 @@ for (let i = 2; i < process.argv.length; i++) {
   }
 }
 
-const host = process.env.VAN_DB_HOST || "127.0.0.1";
-const port = Number(process.env.VAN_DB_PORT || 5432);
-const database = process.env.VAN_DB_NAME || "vandb";
-const user = process.env.VAN_DB_USER || "vanuser";
-const password = process.env.VAN_DB_PASSWORD;
+const host = (process.env.VAN_DB_HOST || "127.0.0.1").trim();
+const port = Number((process.env.VAN_DB_PORT || "5432").trim());
+const database = (process.env.VAN_DB_NAME || "vandb").trim();
+const user = (process.env.VAN_DB_USER || "vanuser").trim();
+const password = (process.env.VAN_DB_PASSWORD || "").trim();
 
 if (!password) {
-  console.error("Нет VAN_DB_PASSWORD в .env");
+  console.error("Нет VAN_DB_PASSWORD в .env (или пустая строка после trim).");
   process.exit(1);
 }
 
