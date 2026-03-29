@@ -83,7 +83,14 @@ node scripts/import_completed_to_yxxxxxx.mjs --file completed.txt
    chmod 600 ~/.ssh/authorized_keys
    ```
 
-   Проверка с ПК (если всё равно просит passphrase — клиент берёт **другой** ключ из агента; укажите файл и отключите лишние):
+   **Windows (OpenSSH):** если видите `UNPROTECTED PRIVATE KEY FILE` / `bad permissions`, сузьте ACL у файла ключа (один раз, в PowerShell):
+
+   ```powershell
+   icacls "c:\van3\.van3-github-ci-deploy" /inheritance:r
+   icacls "c:\van3\.van3-github-ci-deploy" /grant:r "$($env:USERNAME):(R)"
+   ```
+
+   Проверка с ПК (если просит passphrase — клиент берёт **другой** ключ из агента; укажите файл и отключите лишние):
 
    ```bash
    ssh -i .van3-github-ci-deploy -o IdentitiesOnly=yes deploy@СЕРВЕР
