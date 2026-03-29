@@ -70,10 +70,12 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || '22' }}
+          command_timeout: 30m
           envs: POSTGRES_USER,POSTGRES_PASSWORD,POSTGRES_DB,VAN_POSTGRES_PUBLISH
           script_stop: true
           script: |
             set -e
+            export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
             APP_DIR="${{ secrets.DEPLOY_APP_DIR }}"
             REPO_URL="https://x-access-token:${{ secrets.GH_REPO_TOKEN }}@github.com/${{ github.repository }}.git"
 
@@ -105,9 +107,10 @@ jobs:
             fi
 
             cd "$APP_DIR"
+            git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
             git remote set-url origin "$REPO_URL"
             if ! git fetch origin main; then
-              echo "::error::git fetch failed — token or branch main"
+              echo "::error::git fetch failed — token, branch main, или safe.directory (см. лог выше)"
               exit 1
             fi
             if ! git reset --hard origin/main; then
@@ -118,8 +121,9 @@ jobs:
             write_env_docker() {
               key="$1"
               val="$2"
-              clean="$(printf '%s' "$val" | tr '\r\n' ' ' | sed 's/[[:space:]]\+$//')"
-              printf '%s=%s\n' "$key" "$clean" >> .env.docker
+              clean="$(printf '%s' "$val" | tr -d '\r\n' | sed 's/[[:space:]]\+$//')"
+              esc="$(printf '%s' "$clean" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\$/\\$/g' -e 's/`/\\`/g')"
+              printf '%s="%s"\n' "$key" "$esc" >> .env.docker
             }
 
             : > .env.docker
@@ -135,9 +139,18 @@ jobs:
 
             if docker compose version >/dev/null 2>&1; then
               docker compose --env-file .env.docker pull 2>/dev/null || true
+              if ! docker compose --env-file .env.docker config >/dev/null 2>&1; then
+                echo "::error::docker compose config не прошёл — синтаксис compose/.env.docker или переменные (пароль не выводим в лог)."
+                exit 1
+              fi
               if ! docker compose --env-file .env.docker up -d --remove-orphans; then
-                echo "=== docker compose up failed (last 100 log lines) ==="
-                docker compose --env-file .env.docker logs --tail 100 2>&1 || true
+                echo "=== memory / disk ==="
+                free -h 2>/dev/null || true
+                df -h 2>/dev/null | head -20 || true
+                echo "=== docker compose ps -a ==="
+                docker compose --env-file .env.docker ps -a 2>&1 || true
+                echo "=== docker compose logs (last 200 lines) ==="
+                docker compose --env-file .env.docker logs --tail 200 2>&1 || true
                 exit 1
               fi
               docker compose --env-file .env.docker ps || true
