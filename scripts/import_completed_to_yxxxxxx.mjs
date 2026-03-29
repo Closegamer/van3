@@ -82,8 +82,13 @@ const lines = raw
   .filter((s) => s.length > 0 && !s.startsWith("#"));
 
 if (lines.length === 0) {
-  console.log("Нет непустых строк для импорта.");
-  process.exit(0);
+  const st = fs.statSync(fileArg);
+  console.error(
+    "Нет непустых строк для импорта. Файл:",
+    fileArg,
+    `(${st.size} байт). Строки с # в начале и пустые отбрасываются. Укажите путь: --file D:\\path\\completed.txt`
+  );
+  process.exit(1);
 }
 
 function sslOption() {
