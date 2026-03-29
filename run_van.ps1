@@ -1,7 +1,7 @@
 Param(
     [string]$StartedFile = "started.txt",
     [string]$CompletedFile = "completed.txt",
-    [string]$VanitySearchExe = "VanitySearch.exe",
+    [string]$VanSearchExe = "VanSearch.exe",
     [string]$GpuId = "0",
     [string]$OutputFile = "output.txt",
     [int]$Range = 44,
@@ -61,17 +61,17 @@ function Import-DotEnv {
 
 Import-DotEnv -Path (Join-Path $scriptDir $EnvFile)
 
-if ($env:VANITY_DB_HOST -and $env:VANITY_DB_HOST.Trim().Length -gt 0) {
-    $DbHost = $env:VANITY_DB_HOST.Trim()
+if ($env:VAN_DB_HOST -and $env:VAN_DB_HOST.Trim().Length -gt 0) {
+    $DbHost = $env:VAN_DB_HOST.Trim()
 }
-if ($env:VANITY_DB_PORT -and $env:VANITY_DB_PORT.Trim().Length -gt 0) {
-    $DbPort = [int]$env:VANITY_DB_PORT.Trim()
+if ($env:VAN_DB_PORT -and $env:VAN_DB_PORT.Trim().Length -gt 0) {
+    $DbPort = [int]$env:VAN_DB_PORT.Trim()
 }
-if ($env:VANITY_DB_NAME -and $env:VANITY_DB_NAME.Trim().Length -gt 0) {
-    $DatabaseName = $env:VANITY_DB_NAME.Trim()
+if ($env:VAN_DB_NAME -and $env:VAN_DB_NAME.Trim().Length -gt 0) {
+    $DatabaseName = $env:VAN_DB_NAME.Trim()
 }
-if ($env:VANITY_DB_USER -and $env:VANITY_DB_USER.Trim().Length -gt 0) {
-    $DbUser = $env:VANITY_DB_USER.Trim()
+if ($env:VAN_DB_USER -and $env:VAN_DB_USER.Trim().Length -gt 0) {
+    $DbUser = $env:VAN_DB_USER.Trim()
 }
 if ($env:DB_ENGINE -in @("Postgres", "SqlServer")) {
     $DbEngine = $env:DB_ENGINE
@@ -82,10 +82,10 @@ if (-not $WorkerId -or $WorkerId.Trim().Length -eq 0) {
     if (-not $WorkerId) { $WorkerId = "unknown-host" }
 }
 
-Write-Host "run_vanity.ps1: script started" -ForegroundColor Cyan
+Write-Host "run_van.ps1: script started" -ForegroundColor Cyan
 
-if (-not (Test-Path -LiteralPath $VanitySearchExe)) {
-    Write-Host "File '$VanitySearchExe' not found." -ForegroundColor Red
+if (-not (Test-Path -LiteralPath $VanSearchExe)) {
+    Write-Host "File '$VanSearchExe' not found." -ForegroundColor Red
     exit 1
 }
 
@@ -117,9 +117,9 @@ $script:OdbcConnString = $null
 $script:DbEngine = $null
 
 if ($UseDatabase) {
-    $dbPassword = $env:VANITY_DB_PASSWORD
+    $dbPassword = $env:VAN_DB_PASSWORD
     if (-not $dbPassword) {
-        Write-Host "UseDatabase is set: set VANITY_DB_PASSWORD (e.g. in .env next to this script)." -ForegroundColor Red
+        Write-Host "UseDatabase is set: set VAN_DB_PASSWORD (e.g. in .env next to this script)." -ForegroundColor Red
         exit 1
     }
     if ($DbPort -eq 0) {
@@ -228,10 +228,10 @@ function Invoke-DbScalar {
     }
 }
 
-function Initialize-VanityDbSchema {
+function Initialize-VanDbSchema {
     if ($script:DbEngine -eq "Postgres") {
         $sql = @"
-CREATE TABLE IF NOT EXISTS vanity_ranges (
+CREATE TABLE IF NOT EXISTS van_ranges (
     range_key VARCHAR(32) NOT NULL PRIMARY KEY,
     status VARCHAR(20) NOT NULL,
     prefix_index INT NOT NULL DEFAULT 0,
@@ -240,21 +240,21 @@ CREATE TABLE IF NOT EXISTS vanity_ranges (
 );
 "@
         Invoke-DbNonQueryOdbc -Sql $sql
-        Invoke-DbNonQueryOdbc -Sql "CREATE INDEX IF NOT EXISTS ix_vanity_ranges_status ON vanity_ranges (status)"
+        Invoke-DbNonQueryOdbc -Sql "CREATE INDEX IF NOT EXISTS ix_van_ranges_status ON van_ranges (status)"
         return
     }
 
     $sql = @"
-IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'vanity_ranges' AND schema_id = SCHEMA_ID('dbo'))
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'van_ranges' AND schema_id = SCHEMA_ID('dbo'))
 BEGIN
-    CREATE TABLE dbo.vanity_ranges (
+    CREATE TABLE dbo.van_ranges (
         range_key VARCHAR(32) NOT NULL PRIMARY KEY,
         status NVARCHAR(20) NOT NULL,
-        prefix_index INT NOT NULL CONSTRAINT DF_vanity_ranges_prefix DEFAULT (0),
+        prefix_index INT NOT NULL CONSTRAINT DF_van_ranges_prefix DEFAULT (0),
         worker_id NVARCHAR(128) NOT NULL,
-        updated_at DATETIME2 NOT NULL CONSTRAINT DF_vanity_ranges_updated DEFAULT (SYSUTCDATETIME())
+        updated_at DATETIME2 NOT NULL CONSTRAINT DF_van_ranges_updated DEFAULT (SYSUTCDATETIME())
     );
-    CREATE INDEX IX_vanity_ranges_status ON dbo.vanity_ranges(status);
+    CREATE INDEX IX_van_ranges_status ON dbo.van_ranges(status);
 END
 "@
     Invoke-DbNonQuery -Sql $sql
@@ -262,7 +262,7 @@ END
 
 function Get-DbRangeStates {
     if ($script:DbEngine -eq "Postgres") {
-        $sql = "SELECT range_key, status, prefix_index, worker_id FROM vanity_ranges"
+        $sql = "SELECT range_key, status, prefix_index, worker_id FROM van_ranges"
         $cn = New-Object System.Data.Odbc.OdbcConnection($script:OdbcConnString)
         $cn.Open()
         try {
@@ -286,7 +286,7 @@ function Get-DbRangeStates {
 
     $sql = @"
 SELECT range_key, status, prefix_index, worker_id
-FROM dbo.vanity_ranges
+FROM dbo.van_ranges
 "@
     $cn = New-Object System.Data.SqlClient.SqlConnection($dbConnString)
     $cn.Open()
@@ -317,7 +317,7 @@ function Try-DbClaimRangeKey {
     )
     $RangeKey = $RangeKey.ToUpperInvariant()
     if ($script:DbEngine -eq "Postgres") {
-        $sql = "INSERT INTO vanity_ranges (range_key, status, prefix_index, worker_id) VALUES (?,?,?,?)"
+        $sql = "INSERT INTO van_ranges (range_key, status, prefix_index, worker_id) VALUES (?,?,?,?)"
         try {
             Invoke-DbNonQueryOdbc -Sql $sql -Values @($RangeKey, "in_progress", $PrefixIndex, $WorkerId)
             return $true
@@ -327,7 +327,7 @@ function Try-DbClaimRangeKey {
     }
 
     $sql = @"
-INSERT INTO dbo.vanity_ranges (range_key, status, prefix_index, worker_id)
+INSERT INTO dbo.van_ranges (range_key, status, prefix_index, worker_id)
 VALUES (@range_key, N'in_progress', @prefix_index, @worker_id)
 "@
     try {
@@ -349,13 +349,13 @@ function Update-DbPrefixIndex {
     )
     $RangeKey = $RangeKey.ToUpperInvariant()
     if ($script:DbEngine -eq "Postgres") {
-        $sql = "UPDATE vanity_ranges SET prefix_index = ?, updated_at = CURRENT_TIMESTAMP WHERE range_key = ? AND worker_id = ?"
+        $sql = "UPDATE van_ranges SET prefix_index = ?, updated_at = CURRENT_TIMESTAMP WHERE range_key = ? AND worker_id = ?"
         Invoke-DbNonQueryOdbc -Sql $sql -Values @($PrefixIndex, $RangeKey, $WorkerId)
         return
     }
 
     $sql = @"
-UPDATE dbo.vanity_ranges
+UPDATE dbo.van_ranges
 SET prefix_index = @prefix_index, updated_at = SYSUTCDATETIME()
 WHERE range_key = @range_key AND worker_id = @worker_id
 "@
@@ -370,13 +370,13 @@ function Complete-DbRangeKey {
     param([string]$RangeKey)
     $RangeKey = $RangeKey.ToUpperInvariant()
     if ($script:DbEngine -eq "Postgres") {
-        $sql = "UPDATE vanity_ranges SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE range_key = ? AND worker_id = ?"
+        $sql = "UPDATE van_ranges SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE range_key = ? AND worker_id = ?"
         Invoke-DbNonQueryOdbc -Sql $sql -Values @($RangeKey, $WorkerId)
         return
     }
 
     $sql = @"
-UPDATE dbo.vanity_ranges
+UPDATE dbo.van_ranges
 SET status = N'completed', updated_at = SYSUTCDATETIME()
 WHERE range_key = @range_key AND worker_id = @worker_id
 "@
@@ -407,13 +407,13 @@ function Test-CanResumeFromDb {
     param([string]$RangeKey)
     $RangeKey = $RangeKey.ToUpperInvariant()
     if ($script:DbEngine -eq "Postgres") {
-        $sql = "SELECT 1 FROM vanity_ranges WHERE range_key = ? AND worker_id = ? AND status = 'in_progress' LIMIT 1"
+        $sql = "SELECT 1 FROM van_ranges WHERE range_key = ? AND worker_id = ? AND status = 'in_progress' LIMIT 1"
         $one = Invoke-DbScalarOdbc -Sql $sql -Values @($RangeKey, $WorkerId)
         return ($null -ne $one -and [DBNull]::Value -ne $one)
     }
 
     $sql = @"
-SELECT 1 FROM dbo.vanity_ranges
+SELECT 1 FROM dbo.van_ranges
 WHERE range_key = @range_key AND worker_id = @worker_id AND status = N'in_progress'
 "@
     $one = Invoke-DbScalar -Sql $sql -Parameters @{
@@ -492,7 +492,7 @@ if ($null -eq $completedMap) {
 $blockedByOthers = @{}
 if ($UseDatabase) {
     if ($DbInitSchema) {
-        Initialize-VanityDbSchema
+        Initialize-VanDbSchema
         Write-Host "Database: schema verified/created." -ForegroundColor DarkGray
     }
     try {
@@ -592,13 +592,13 @@ while (-not $found) {
             "-stop", $StopAddress
         )
 
-        Write-Host "Starting process: $VanitySearchExe $($arguments -join ' ')" -ForegroundColor DarkCyan
-        & ".\${VanitySearchExe}" @arguments
+        Write-Host "Starting process: $VanSearchExe $($arguments -join ' ')" -ForegroundColor DarkCyan
+        & ".\${VanSearchExe}" @arguments
 
         if ($LASTEXITCODE -ne 0) {
-            Write-Host "VanitySearch exited with code $LASTEXITCODE." -ForegroundColor DarkYellow
+            Write-Host "VanSearch exited with code $LASTEXITCODE." -ForegroundColor DarkYellow
         } else {
-            Write-Host "VanitySearch finished with exit code 0." -ForegroundColor Green
+            Write-Host "VanSearch finished with exit code 0." -ForegroundColor Green
         }
 
         $afterLength = $beforeLength

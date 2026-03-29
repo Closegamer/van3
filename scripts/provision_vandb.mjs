@@ -4,10 +4,10 @@
  * Запуск из корня проекта:
  *   node scripts/provision_vandb.mjs
  *
- * Читает `.env`: VANITY_PG_ADMIN_* (и при необходимости VANITY_DB_* для хоста/порта).
+ * Читает `.env`: VAN_PG_ADMIN_* (и при необходимости VAN_DB_* для хоста/порта).
  * Опционально: --env-file PATH --host IP (перекрывают .env).
  *
- * Пароль vanuser: VANITY_DB_PASSWORD / VANUSER_PASSWORD, иначе генерируется и печатается один раз.
+ * Пароль vanuser: VAN_DB_PASSWORD / VANUSER_PASSWORD, иначе генерируется и печатается один раз.
  */
 import fs from "fs";
 import path from "path";
@@ -49,8 +49,8 @@ for (let i = 2; i < process.argv.length; i++) {
 function adminHost() {
   const h =
     cliHost ||
-    process.env.VANITY_PG_ADMIN_HOST ||
-    process.env.VANITY_DB_HOST ||
+    process.env.VAN_PG_ADMIN_HOST ||
+    process.env.VAN_DB_HOST ||
     process.env.PGHOST ||
     process.env.POSTGRES_HOST ||
     null;
@@ -60,24 +60,24 @@ function adminHost() {
 
 const host = adminHost();
 const port = Number(
-  process.env.VANITY_PG_ADMIN_PORT ||
-    process.env.VANITY_DB_PORT ||
+  process.env.VAN_PG_ADMIN_PORT ||
+    process.env.VAN_DB_PORT ||
     process.env.PGPORT ||
     process.env.POSTGRES_PORT ||
     5432
 );
 const adminUser =
-  process.env.VANITY_PG_ADMIN_USER ||
+  process.env.VAN_PG_ADMIN_USER ||
   process.env.PGUSER ||
   process.env.POSTGRES_USER ||
   "postgres";
 const adminPass =
-  process.env.VANITY_PG_ADMIN_PASSWORD ||
+  process.env.VAN_PG_ADMIN_PASSWORD ||
   process.env.PGPASSWORD ||
   process.env.POSTGRES_PASSWORD;
 
 let vanPass =
-  process.env.VANITY_DB_PASSWORD || process.env.VANUSER_PASSWORD || null;
+  process.env.VAN_DB_PASSWORD || process.env.VANUSER_PASSWORD || null;
 
 function randomPass() {
   const b = Buffer.allocUnsafe(16);
@@ -87,7 +87,7 @@ function randomPass() {
 
 if (!adminPass) {
   console.error(
-    "Задайте VANITY_PG_ADMIN_PASSWORD в .env (или PGPASSWORD / POSTGRES_PASSWORD для совместимости)."
+    "Задайте VAN_PG_ADMIN_PASSWORD в .env (или PGPASSWORD / POSTGRES_PASSWORD для совместимости)."
   );
   process.exit(1);
 }
@@ -114,7 +114,7 @@ async function connectAs(dbName) {
 }
 
 const appDb =
-  process.env.VANITY_PG_ADMIN_DATABASE || process.env.POSTGRES_DB || null;
+  process.env.VAN_PG_ADMIN_DATABASE || process.env.POSTGRES_DB || null;
 const tryDbs =
   appDb && appDb !== "postgres" ? [appDb, "postgres"] : ["postgres"];
 let admin;
@@ -151,10 +151,10 @@ try {
     await admin.query(
       `CREATE ROLE vanuser WITH LOGIN PASSWORD ${pgQuoteLiteral(vanPass)}`
     );
-    if (process.env.VANITY_DB_PASSWORD || process.env.VANUSER_PASSWORD) {
+    if (process.env.VAN_DB_PASSWORD || process.env.VANUSER_PASSWORD) {
       console.log("Создана роль vanuser (пароль из env).");
     } else {
-      console.log("Создана роль vanuser. Укажите в .env VANITY_DB_PASSWORD:");
+      console.log("Создана роль vanuser. Укажите в .env VAN_DB_PASSWORD:");
       console.log(vanPass);
     }
   } else {

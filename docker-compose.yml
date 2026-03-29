@@ -1,9 +1,9 @@
-# Автономный PostgreSQL с БД vandb и схемой vanity_ranges.
+# Автономный PostgreSQL с БД vandb и таблицей van_ranges.
 # Подготовка: cp .env.docker.example .env.docker && отредактировать пароль
 # Запуск:    docker compose --env-file .env.docker up -d
 # Логи:      docker compose --env-file .env.docker logs -f postgres
 #
-# Переменные POSTGRES_* и VANITY_POSTGRES_PUBLISH задаются в .env.docker и подставляются при запуске compose.
+# Переменные POSTGRES_* и VAN_POSTGRES_PUBLISH задаются в .env.docker и подставляются при запуске compose.
 
 services:
   postgres:
@@ -15,7 +15,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Задайте POSTGRES_PASSWORD в .env.docker}
       POSTGRES_DB: ${POSTGRES_DB:-vandb}
     ports:
-      - "${VANITY_POSTGRES_PUBLISH:-5432}:5432"
+      - "${VAN_POSTGRES_PUBLISH:-5432}:5432"
     volumes:
       - van3_pgdata:/var/lib/postgresql/data
       - ./docker/initdb:/docker-entrypoint-initdb.d:ro

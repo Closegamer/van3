@@ -1,10 +1,10 @@
-# van3 — VanitySearch + PostgreSQL (vandb)
+# van3 — VanSearch + PostgreSQL (vandb)
 
-PowerShell-оркестратор `run_vanity.ps1`, учёт диапазонов в PostgreSQL, Docker-стек только с **Postgres** (`vandb`), импорт `completed.txt` в таблицу `yxxxxxx`.
+PowerShell-оркестратор `run_van.ps1`, учёт диапазонов в PostgreSQL, Docker-стек только с **Postgres** (`vandb`), импорт `completed.txt` в таблицу `yxxxxxx`.
 
 ## Локально
 
-- `run_vanity.bat` / `run_vanity.ps1` — рядом нужны `VanitySearch.exe`, опционально `.env` (см. `.env.example`).
+- `run_van.bat` / `run_van.ps1` — рядом нужны `VanSearch.exe`, опционально `.env` (см. `.env.example`).
 - Импорт в БД: `npm run import-completed` или `.\Import-CompletedToYxxxxxx.ps1`.
 
 ## Docker
@@ -27,7 +27,7 @@ PowerShell-оркестратор `run_vanity.ps1`, учёт диапазоно�
 | `DEPLOY_HOST` | IP/DNS сервера (например `YOUR_SERVER_IP`) |
 | `DEPLOY_USER` | SSH-пользователь |
 | `DEPLOY_SSH_KEY` | Приватный ключ (весь PEM) |
-| `DEPLOY_PORT` | SSH-порт (часто `22`) |
+| `DEPLOY_PORT` | SSH-порт; если не задать, в workflow используется `22` |
 | `DEPLOY_APP_DIR` | Каталог на сервере (например `/opt/van3`) |
 | `GH_REPO_TOKEN` | PAT с `repo` для `git clone` по HTTPS |
 
@@ -35,10 +35,10 @@ PowerShell-оркестратор `run_vanity.ps1`, учёт диапазоно�
 
 | Секрет | Назначение |
 |--------|------------|
-| `VANITY_POSTGRES_USER` | Обычно `vanuser` |
-| `VANITY_POSTGRES_PASSWORD` | Пароль суперпользователя БД в контейнере |
-| `VANITY_POSTGRES_DB` | Обычно `vandb` |
-| `VANITY_POSTGRES_PUBLISH` | Порт хоста, например `5432` или `55432`, если `5432` занят |
+| `VAN_POSTGRES_USER` | Обычно `vanuser` |
+| `VAN_POSTGRES_PASSWORD` | Пароль суперпользователя БД в контейнере |
+| `VAN_POSTGRES_DB` | Обычно `vandb` |
+| `VAN_POSTGRES_PUBLISH` | Порт хоста, например `5432` или `55432`, если `5432` занят |
 
 На сервере нужны **Git** и **Docker Compose v2** (`docker compose`).
 
@@ -55,6 +55,6 @@ git push -u origin main
 
 PAT в `GH_REPO_TOKEN` должен иметь доступ к этому репозиторию.
 
-## Переменные для `run_vanity.ps1` с удалённой БД
+## Переменные для `run_van.ps1` с удалённой БД
 
-В `.env` на машине, где крутится поиск: `VANITY_DB_HOST`, `VANITY_DB_PORT` (как в `VANITY_POSTGRES_PUBLISH`), `VANITY_DB_PASSWORD` = тот же, что `VANITY_POSTGRES_PASSWORD`, и т.д. (см. `.env.example`).
+В `.env` на машине, где крутится поиск: `VAN_DB_HOST`, `VAN_DB_PORT` (как в `VAN_POSTGRES_PUBLISH`), `VAN_DB_PASSWORD` = тот же, что `VAN_POSTGRES_PASSWORD`, и т.д. (см. `.env.example`).

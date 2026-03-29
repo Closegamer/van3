@@ -1,6 +1,6 @@
 /**
  * Импорт строк из completed.txt в таблицу yxxxxxx (PostgreSQL).
- * Подключение из .env: VANITY_DB_HOST, VANITY_DB_PORT, VANITY_DB_NAME, VANITY_DB_USER, VANITY_DB_PASSWORD
+ * Подключение из .env: VAN_DB_HOST, VAN_DB_PORT, VAN_DB_NAME, VAN_DB_USER, VAN_DB_PASSWORD
  *
  *   node scripts/import_completed_to_yxxxxxx.mjs
  *   node scripts/import_completed_to_yxxxxxx.mjs --file path/to/completed.txt
@@ -42,14 +42,14 @@ for (let i = 2; i < process.argv.length; i++) {
   }
 }
 
-const host = process.env.VANITY_DB_HOST || "127.0.0.1";
-const port = Number(process.env.VANITY_DB_PORT || 5432);
-const database = process.env.VANITY_DB_NAME || "vandb";
-const user = process.env.VANITY_DB_USER || "vanuser";
-const password = process.env.VANITY_DB_PASSWORD;
+const host = process.env.VAN_DB_HOST || "127.0.0.1";
+const port = Number(process.env.VAN_DB_PORT || 5432);
+const database = process.env.VAN_DB_NAME || "vandb";
+const user = process.env.VAN_DB_USER || "vanuser";
+const password = process.env.VAN_DB_PASSWORD;
 
 if (!password) {
-  console.error("Нет VANITY_DB_PASSWORD в .env");
+  console.error("Нет VAN_DB_PASSWORD в .env");
   process.exit(1);
 }
 

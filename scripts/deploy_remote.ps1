@@ -44,7 +44,7 @@ Invoke-RemoteSsh @($Target, "mkdir -p $RemotePath/docker/initdb")
 
 Invoke-RemoteScp (Join-Path $root "docker-compose.yml") "${Target}:$RemotePath/"
 Invoke-RemoteScp (Join-Path $root ".env.docker") "${Target}:$RemotePath/"
-Invoke-RemoteScp (Join-Path $root "docker/initdb/010_vanity_ranges.sql") "${Target}:$RemotePath/docker/initdb/"
+Invoke-RemoteScp (Join-Path $root "docker/initdb/010_van_ranges.sql") "${Target}:$RemotePath/docker/initdb/"
 
 $cmd = "cd $RemotePath && docker compose --env-file .env.docker pull 2>/dev/null; docker compose --env-file .env.docker up -d && docker compose --env-file .env.docker ps"
 Write-Host "docker compose up -d ..." -ForegroundColor Cyan
