@@ -59,7 +59,7 @@ node scripts/import_completed_to_yxxxxxx.mjs --file completed.txt --van-ranges
 
 PowerShell: `.\Import-CompletedToYxxxxxx.ps1 -VanRanges`
 
-**`password authentication failed for user "vanuser"`:** в **`C:\van3\.env`** должны совпадать с сервером **`VAN_DB_PASSWORD`** = **`POSTGRES_PASSWORD`** из **`.env.docker`** (без лишних пробелов; в файле можно без кавычек: `VAN_DB_PASSWORD=...`). **`VAN_DB_PORT`** = **`VAN_POSTGRES_PUBLISH`** (на скрине с сервера это **55432**, не 5432). Если пароль в `.env.docker` меняли **после** первого запуска контейнера, внутри тома Postgres остаётся **старый** пароль — либо подключайтесь старым, либо один раз в контейнере: `ALTER USER vanuser WITH PASSWORD 'новый';`, либо снос тома (данные пропадут).
+**`password authentication failed for user "vanuser"`:** в **`C:\van3\.env`** должны совпадать с **реальным** паролем роли `vanuser` в **запущенном** контейнере van3 (как **`POSTGRES_PASSWORD`** в **`.env.docker` на сервере** в момент **первого** `docker compose up` с пустым томом). Локальный файл `.env.docker` может отличаться от того, что задеплоено; проще проверить: **`npm run check-db`**. **`VAN_DB_PORT`** = **`VAN_POSTGRES_PUBLISH`** (часто **55432**). Если пароль в `.env.docker` меняли **после** первого запуска, в томе остаётся старый пароль — `ALTER USER` или снос тома.
 
 Если появляется **«выполнение сценариев отключено»** (`PSSecurityException`), варианты:
 

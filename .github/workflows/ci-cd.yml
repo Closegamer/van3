@@ -30,6 +30,7 @@ jobs:
         run: |
           node --check scripts/import_completed_to_yxxxxxx.mjs
           node --check scripts/provision_vandb.mjs
+          node --check scripts/check_db_connection.mjs
 
   deploy:
     runs-on: ubuntu-latest

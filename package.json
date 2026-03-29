@@ -2,7 +2,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "import-completed": "node scripts/import_completed_to_yxxxxxx.mjs"
+    "import-completed": "node scripts/import_completed_to_yxxxxxx.mjs",
+    "check-db": "node scripts/check_db_connection.mjs"
   },
   "dependencies": {
     "pg": "^8.13.1"
