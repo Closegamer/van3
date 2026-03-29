@@ -20,7 +20,8 @@ Param(
     [string]$PostgresOdbcDriver = "{PostgreSQL Unicode}",
     [string]$WorkerId = "",
     [switch]$DbInitSchema,
-    [string]$EnvFile = ".env"
+    [string]$EnvFile = ".env",
+    [switch]$UseLocalCompletedFile
 )
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -90,6 +91,22 @@ if (-not $PSBoundParameters.ContainsKey('UseDatabase')) {
     }
 }
 
+# С БД: по умолчанию пройденные диапазоны только из van_ranges (completed.txt не читаем и не дописываем).
+# Файл + БД: -UseLocalCompletedFile или VAN_USE_LOCAL_COMPLETED_FILE=1
+$useLocalCompletedFile = $false
+if (-not $UseDatabase) {
+    $useLocalCompletedFile = $true
+}
+elseif ($PSBoundParameters.ContainsKey('UseLocalCompletedFile') -and $UseLocalCompletedFile) {
+    $useLocalCompletedFile = $true
+}
+elseif ($env:VAN_USE_LOCAL_COMPLETED_FILE -match '^(1|true|yes)$') {
+    $useLocalCompletedFile = $true
+}
+elseif ($env:VAN_USE_LOCAL_COMPLETED_FILE -match '^(0|false|no)$') {
+    $useLocalCompletedFile = $false
+}
+
 if (-not $WorkerId -or $WorkerId.Trim().Length -eq 0) {
     if ($env:VAN_WORKER_ID -and $env:VAN_WORKER_ID.Trim().Length -gt 0) {
         $WorkerId = $env:VAN_WORKER_ID.Trim()
@@ -111,7 +128,7 @@ if (-not (Test-Path -LiteralPath $StartedFile)) {
     New-Item -ItemType File -Path $StartedFile | Out-Null
 }
 
-if (-not (Test-Path -LiteralPath $CompletedFile)) {
+if ($useLocalCompletedFile -and -not (Test-Path -LiteralPath $CompletedFile)) {
     New-Item -ItemType File -Path $CompletedFile | Out-Null
 }
 
@@ -506,9 +523,10 @@ function Get-StartedState {
     return $null
 }
 
-$completedMap = Get-CompletedMap -Path $CompletedFile
-if ($null -eq $completedMap) {
-    $completedMap = @{}
+$completedMap = @{}
+if ($useLocalCompletedFile) {
+    $completedMap = Get-CompletedMap -Path $CompletedFile
+    if ($null -eq $completedMap) { $completedMap = @{} }
 }
 
 $blockedByOthers = @{}
@@ -523,7 +541,8 @@ if ($UseDatabase) {
         Write-Host "Database error while loading ranges: $($_.Exception.Message)" -ForegroundColor Red
         exit 1
     }
-    Write-Host "Database: host $DbHost; worker '$WorkerId'; completed keys (file+DB): $($completedMap.Count); in progress elsewhere: $($blockedByOthers.Count)" -ForegroundColor DarkGray
+    $src = if ($useLocalCompletedFile) { "file+DB" } else { "DB only" }
+    Write-Host "Database: host $DbHost; worker '$WorkerId'; completed ($src): $($completedMap.Count); in progress elsewhere: $($blockedByOthers.Count)" -ForegroundColor DarkGray
 }
 
 Write-Host "Loaded completed X-sequences: $($completedMap.Count)" -ForegroundColor DarkGray
@@ -643,7 +662,9 @@ while (-not $found) {
         break
     }
 
-    Add-Content -LiteralPath $CompletedFile -Value $randomX
+    if ($useLocalCompletedFile) {
+        Add-Content -LiteralPath $CompletedFile -Value $randomX
+    }
     $completedMap[$randomX] = $true
     if ($UseDatabase) {
         Complete-DbRangeKey -RangeKey $randomX
