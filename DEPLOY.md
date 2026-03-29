@@ -59,6 +59,12 @@ node scripts/import_completed_to_yxxxxxx.mjs --file completed.txt --van-ranges
 
 PowerShell: `.\Import-CompletedToYxxxxxx.ps1 -VanRanges`
 
+Если появляется **«выполнение сценариев отключено»** (`PSSecurityException`), варианты:
+
+- один раз обойти: `powershell -NoProfile -ExecutionPolicy Bypass -File .\Import-CompletedToYxxxxxx.ps1 -VanRanges`
+- без `.ps1`: из каталога проекта `node scripts/import_completed_to_yxxxxxx.mjs --van-ranges`
+- постоянно для своего пользователя (осознанно): `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+
 Другая длина X: `--x-length 6`. Поле `worker_id` в БД: переменная **`VAN_IMPORT_WORKER_ID`** (по умолчанию `completed-txt-import`). Уже существующие ключи не перезаписываются (`ON CONFLICT DO NOTHING`; чужой `in_progress` не трогаем).
 
 Подключение те же переменные, что для `run_van.ps1`: `VAN_DB_*` в `.env`.
