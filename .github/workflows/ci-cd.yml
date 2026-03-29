@@ -42,6 +42,7 @@ jobs:
 
     steps:
       - name: Verify deploy secrets (non-empty)
+        shell: bash
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
@@ -50,7 +51,7 @@ jobs:
           GH_REPO_TOKEN: ${{ secrets.GH_REPO_TOKEN }}
           VAN_POSTGRES_PASSWORD: ${{ secrets.VAN_POSTGRES_PASSWORD }}
         run: |
-          set -e
+          set -euo pipefail
           ok=true
           for v in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY DEPLOY_APP_DIR GH_REPO_TOKEN VAN_POSTGRES_PASSWORD; do
             if [ -z "${!v:-}" ]; then echo "::error::Secret $v is empty or not set"; ok=false; fi
@@ -72,7 +73,7 @@ jobs:
           envs: POSTGRES_USER,POSTGRES_PASSWORD,POSTGRES_DB,VAN_POSTGRES_PUBLISH
           script_stop: true
           script: |
-            set -eu
+            set -e
             APP_DIR="${{ secrets.DEPLOY_APP_DIR }}"
             REPO_URL="https://x-access-token:${{ secrets.GH_REPO_TOKEN }}@github.com/${{ github.repository }}.git"
 
@@ -84,6 +85,11 @@ jobs:
                 ;;
             esac
 
+            if ! command -v git >/dev/null 2>&1; then
+              echo "::error::git is not installed on the server (sudo apt install git)"
+              exit 1
+            fi
+
             parent="$(dirname "$APP_DIR")"
             if ! mkdir -p "$parent"; then
               echo "::error::Cannot mkdir $parent — fix permissions or pick a path under the SSH user home (e.g. /home/deploy/apps/van3)"
@@ -92,13 +98,22 @@ jobs:
 
             if [ ! -d "$APP_DIR/.git" ]; then
               rm -rf "$APP_DIR"
-              git clone "$REPO_URL" "$APP_DIR"
+              if ! git clone "$REPO_URL" "$APP_DIR"; then
+                echo "::error::git clone failed — check GH_REPO_TOKEN (repo access) and network"
+                exit 1
+              fi
             fi
 
             cd "$APP_DIR"
             git remote set-url origin "$REPO_URL"
-            git fetch origin main
-            git reset --hard origin/main
+            if ! git fetch origin main; then
+              echo "::error::git fetch failed — token or branch main"
+              exit 1
+            fi
+            if ! git reset --hard origin/main; then
+              echo "::error::git reset --hard origin/main failed"
+              exit 1
+            fi
 
             write_env_docker() {
               key="$1"
@@ -109,9 +124,14 @@ jobs:
 
             : > .env.docker
             write_env_docker POSTGRES_USER "${POSTGRES_USER:-vanuser}"
-            write_env_docker POSTGRES_PASSWORD "$POSTGRES_PASSWORD"
+            write_env_docker POSTGRES_PASSWORD "${POSTGRES_PASSWORD}"
             write_env_docker POSTGRES_DB "${POSTGRES_DB:-vandb}"
             write_env_docker VAN_POSTGRES_PUBLISH "${VAN_POSTGRES_PUBLISH:-5432}"
+
+            if ! docker info >/dev/null 2>&1; then
+              echo "::error::Docker недоступен (установите Docker и добавьте SSH-пользователя в группу docker, затем перелогин)"
+              exit 1
+            fi
 
             if docker compose version >/dev/null 2>&1; then
               docker compose --env-file .env.docker pull 2>/dev/null || true
@@ -120,7 +140,7 @@ jobs:
                 docker compose --env-file .env.docker logs --tail 100 2>&1 || true
                 exit 1
               fi
-              docker compose --env-file .env.docker ps
+              docker compose --env-file .env.docker ps || true
             else
               set -a
               # shellcheck disable=SC1090
@@ -132,5 +152,5 @@ jobs:
                 docker-compose logs --tail 100 2>&1 || true
                 exit 1
               fi
-              docker-compose ps
+              docker-compose ps || true
             fi

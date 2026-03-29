@@ -58,7 +58,7 @@ node scripts/import_completed_to_yxxxxxx.mjs --file completed.txt
 
 ### Чеклист настройки
 
-1. **Сервер:** установлены Git, Docker и плагин Compose v2 (`docker compose`). Пользователь из `DEPLOY_USER` может писать в `DEPLOY_APP_DIR` (например `/opt/van3`) и запускать Docker.
+1. **Сервер:** установлены **Git** (`apt install git`), **Docker** и плагин Compose v2 (`docker compose`). Пользователь из `DEPLOY_USER` может писать в `DEPLOY_APP_DIR` и выполнять **`docker info`** без sudo (иначе CI падает с ошибкой про Docker: `sudo usermod -aG docker <имя_пользователя>`, затем новый сеанс SSH).
 2. **SSH:** в Actions-секрет `DEPLOY_SSH_KEY` вставьте **полный** приватный ключ (PEM), одной строкой с переносами как в файле. Публичный ключ — в `~/.ssh/authorized_keys` на сервере.
 3. **PAT:** создайте [Personal Access Token](https://github.com/settings/tokens) с правом **Contents: Read** (или классический `repo` для приватного репозитория). Секрет **`GH_REPO_TOKEN`** — для `git clone`/`fetch` по HTTPS на сервере.
 4. **Секреты** (Settings → Secrets and variables → Actions): заполните таблицу из `README.md`. Порт SSH: если не задан `DEPLOY_PORT`, в workflow подставляется **22**; для нестандартного порта задайте секрет явно.
