@@ -5,6 +5,7 @@ PowerShell-оркестратор `run_van.ps1`, учёт диапазонов �
 ## Локально
 
 - `run_van.bat` / `run_van.ps1` — рядом нужны `VanSearch.exe`, опционально `.env` (см. `.env.example`).
+- **Несколько ПК, одна PostgreSQL:** в `.env` задайте `VAN_DB_HOST`, `VAN_DB_PORT`, `VAN_DB_PASSWORD` (и при необходимости `VAN_WORKER_ID`). Режим базы включается сам; координация диапазонов — таблица `van_ranges` (см. **DEPLOY.md → Несколько машин**).
 - Импорт в БД: `npm run import-completed` или `.\Import-CompletedToYxxxxxx.ps1`.
 
 ## Docker

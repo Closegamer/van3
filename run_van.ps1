@@ -12,7 +12,7 @@ Param(
     [switch]$UseDatabase,
     [ValidateSet("SqlServer", "Postgres")]
     [string]$DbEngine = "Postgres",
-    [string]$DbHost = "YOUR_SERVER_IP",
+    [string]$DbHost = "",
     [int]$DbPort = 0,
     [string]$DatabaseName = "vandb",
     [string]$DbUser = "",
@@ -77,9 +77,27 @@ if ($env:DB_ENGINE -in @("Postgres", "SqlServer")) {
     $DbEngine = $env:DB_ENGINE
 }
 
+# Несколько машин: общий Postgres, van_ranges (INSERT — занять диапазон, completed — освободить после цикла)
+if (-not $PSBoundParameters.ContainsKey('UseDatabase')) {
+    if ($env:VAN_USE_DATABASE -match '^(0|false|no)$') {
+        $UseDatabase = $false
+    }
+    elseif ($env:VAN_USE_DATABASE -match '^(1|true|yes)$') {
+        $UseDatabase = $true
+    }
+    elseif ($env:VAN_DB_PASSWORD -and $env:VAN_DB_HOST -and $env:VAN_DB_HOST.Trim().Length -gt 0) {
+        $UseDatabase = $true
+    }
+}
+
 if (-not $WorkerId -or $WorkerId.Trim().Length -eq 0) {
-    $WorkerId = $env:COMPUTERNAME
-    if (-not $WorkerId) { $WorkerId = "unknown-host" }
+    if ($env:VAN_WORKER_ID -and $env:VAN_WORKER_ID.Trim().Length -gt 0) {
+        $WorkerId = $env:VAN_WORKER_ID.Trim()
+    }
+    else {
+        $WorkerId = $env:COMPUTERNAME
+        if (-not $WorkerId) { $WorkerId = "unknown-host" }
+    }
 }
 
 Write-Host "run_van.ps1: script started" -ForegroundColor Cyan
@@ -117,9 +135,13 @@ $script:OdbcConnString = $null
 $script:DbEngine = $null
 
 if ($UseDatabase) {
+    if ([string]::IsNullOrWhiteSpace($DbHost)) {
+        Write-Host "База: задайте VAN_DB_HOST в .env или параметр -DbHost (IP/DNS сервера с Postgres)." -ForegroundColor Red
+        exit 1
+    }
     $dbPassword = $env:VAN_DB_PASSWORD
     if (-not $dbPassword) {
-        Write-Host "UseDatabase is set: set VAN_DB_PASSWORD (e.g. in .env next to this script)." -ForegroundColor Red
+        Write-Host "База: задайте VAN_DB_PASSWORD в .env рядом со скриптом (или -UseDatabase с доступом к переменным окружения)." -ForegroundColor Red
         exit 1
     }
     if ($DbPort -eq 0) {
