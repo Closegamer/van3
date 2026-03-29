@@ -149,7 +149,12 @@ if (-not $YPrefixes -or $YPrefixes.Count -eq 0) {
 
 $dbConnString = $null
 $script:OdbcConnString = $null
-$script:DbEngine = $null
+# Внутреннее имя не $script:DbEngine: в PS это конфликтует с параметром -DbEngine (ValidateSet) при присвоении $null
+$script:ConnectedDbEngine = $null
+
+if ($env:VAN_ODBC_DRIVER -and $env:VAN_ODBC_DRIVER.Trim().Length -gt 0) {
+    $PostgresOdbcDriver = $env:VAN_ODBC_DRIVER.Trim()
+}
 
 if ($UseDatabase) {
     if ([string]::IsNullOrWhiteSpace($DbHost)) {
@@ -168,14 +173,24 @@ if ($UseDatabase) {
         $DbUser = "vanuser"
     }
 
-    $script:DbEngine = $DbEngine
+    $script:ConnectedDbEngine = $DbEngine
     try {
         Add-Type -AssemblyName System.Data
     } catch { }
 
     if ($DbEngine -eq "Postgres") {
         $script:OdbcConnString = "Driver=$PostgresOdbcDriver;Server=$DbHost;Port=$DbPort;Database=$DatabaseName;UID=$DbUser;PWD=$dbPassword;"
-        Write-Host "Database engine: PostgreSQL (ODBC) on ${DbHost}:$DbPort, user '$DbUser'." -ForegroundColor DarkGray
+        Write-Host "Database engine: PostgreSQL (ODBC) on ${DbHost}:$DbPort, user '$DbUser', driver '$PostgresOdbcDriver'." -ForegroundColor DarkGray
+        try {
+            $probe = New-Object System.Data.Odbc.OdbcConnection($script:OdbcConnString)
+            $probe.Open()
+            $probe.Close()
+        } catch {
+            Write-Host "ODBC не открыл соединение: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "Установите драйвер: https://odbc.postgresql.org/ (x64). Имя драйвера смотрите в «Администратор источников данных ODBC (64-разрядная)»." -ForegroundColor Yellow
+            Write-Host "В .env задайте точное имя, например: VAN_ODBC_DRIVER={PostgreSQL Unicode} или {PostgreSQL ANSI}" -ForegroundColor Yellow
+            exit 1
+        }
     }
     else {
         $trustCert = if ($DbTrustServerCertificate) { "True" } else { "False" }
@@ -225,7 +240,7 @@ function Invoke-DbNonQuery {
         [string]$Sql,
         [hashtable]$Parameters = @{}
     )
-    if ($script:DbEngine -eq "Postgres") {
+    if ($script:ConnectedDbEngine -eq "Postgres") {
         throw "Invoke-DbNonQuery: Postgres uses Invoke-DbNonQueryOdbc."
     }
     $cn = New-Object System.Data.SqlClient.SqlConnection($dbConnString)
@@ -250,7 +265,7 @@ function Invoke-DbScalar {
         [string]$Sql,
         [hashtable]$Parameters = @{}
     )
-    if ($script:DbEngine -eq "Postgres") {
+    if ($script:ConnectedDbEngine -eq "Postgres") {
         throw "Invoke-DbScalar: Postgres uses Invoke-DbScalarOdbc."
     }
     $cn = New-Object System.Data.SqlClient.SqlConnection($dbConnString)
@@ -268,7 +283,7 @@ function Invoke-DbScalar {
 }
 
 function Initialize-VanDbSchema {
-    if ($script:DbEngine -eq "Postgres") {
+    if ($script:ConnectedDbEngine -eq "Postgres") {
         $sql = @"
 CREATE TABLE IF NOT EXISTS van_ranges (
     range_key VARCHAR(32) NOT NULL PRIMARY KEY,
@@ -300,7 +315,7 @@ END
 }
 
 function Get-DbRangeStates {
-    if ($script:DbEngine -eq "Postgres") {
+    if ($script:ConnectedDbEngine -eq "Postgres") {
         $sql = "SELECT range_key, status, prefix_index, worker_id FROM van_ranges"
         $cn = New-Object System.Data.Odbc.OdbcConnection($script:OdbcConnString)
         $cn.Open()
@@ -355,7 +370,7 @@ function Try-DbClaimRangeKey {
         [int]$PrefixIndex = 0
     )
     $RangeKey = $RangeKey.ToUpperInvariant()
-    if ($script:DbEngine -eq "Postgres") {
+    if ($script:ConnectedDbEngine -eq "Postgres") {
         $sql = "INSERT INTO van_ranges (range_key, status, prefix_index, worker_id) VALUES (?,?,?,?)"
         try {
             Invoke-DbNonQueryOdbc -Sql $sql -Values @($RangeKey, "in_progress", $PrefixIndex, $WorkerId)
@@ -387,7 +402,7 @@ function Update-DbPrefixIndex {
         [int]$PrefixIndex
     )
     $RangeKey = $RangeKey.ToUpperInvariant()
-    if ($script:DbEngine -eq "Postgres") {
+    if ($script:ConnectedDbEngine -eq "Postgres") {
         $sql = "UPDATE van_ranges SET prefix_index = ?, updated_at = CURRENT_TIMESTAMP WHERE range_key = ? AND worker_id = ?"
         Invoke-DbNonQueryOdbc -Sql $sql -Values @($PrefixIndex, $RangeKey, $WorkerId)
         return
@@ -408,7 +423,7 @@ WHERE range_key = @range_key AND worker_id = @worker_id
 function Complete-DbRangeKey {
     param([string]$RangeKey)
     $RangeKey = $RangeKey.ToUpperInvariant()
-    if ($script:DbEngine -eq "Postgres") {
+    if ($script:ConnectedDbEngine -eq "Postgres") {
         $sql = "UPDATE van_ranges SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE range_key = ? AND worker_id = ?"
         Invoke-DbNonQueryOdbc -Sql $sql -Values @($RangeKey, $WorkerId)
         return
@@ -445,7 +460,7 @@ function Merge-DbIntoMaps {
 function Test-CanResumeFromDb {
     param([string]$RangeKey)
     $RangeKey = $RangeKey.ToUpperInvariant()
-    if ($script:DbEngine -eq "Postgres") {
+    if ($script:ConnectedDbEngine -eq "Postgres") {
         $sql = "SELECT 1 FROM van_ranges WHERE range_key = ? AND worker_id = ? AND status = 'in_progress' LIMIT 1"
         $one = Invoke-DbScalarOdbc -Sql $sql -Values @($RangeKey, $WorkerId)
         return ($null -ne $one -and [DBNull]::Value -ne $one)

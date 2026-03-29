@@ -5,7 +5,7 @@
 ## Подготовка
 
 1. Положите рядом **`VanSearch.exe`** (в этот же каталог).
-2. Установите **ODBC-драйвер PostgreSQL** (в списке драйверов обычно **«PostgreSQL Unicode»**). [Скачать](https://odbc.postgresql.org/)
+2. Установите **64-разрядный** ODBC-драйвер PostgreSQL: [odbc.postgresql.org](https://odbc.postgresql.org/) (на Windows часто нужен **psqlODBC** x64, не 32-bit). Откройте **«Администратор источников данных ODBC (64-разрядная)»** → вкладка «Драйверы» и проверьте имя (часто **`{PostgreSQL Unicode}`** или **`{PostgreSQL ANSI}`**). Если ошибка **IM002**, в `.env` добавьте строку **`VAN_ODBC_DRIVER={точное имя из списка}`**.
 3. Скопируйте **`.env.example` → `.env`**, укажите **`VAN_DB_HOST`**, **`VAN_DB_PORT`**, **`VAN_DB_PASSWORD`** (как у сервера van3 / `POSTGRES_PASSWORD`). Порт часто не 5432 (см. `VAN_POSTGRES_PUBLISH` на сервере).
 
 ## Запуск
