@@ -76,9 +76,17 @@ jobs:
             APP_DIR="${{ secrets.DEPLOY_APP_DIR }}"
             REPO_URL="https://x-access-token:${{ secrets.GH_REPO_TOKEN }}@github.com/${{ github.repository }}.git"
 
+            case "$APP_DIR" in
+              /*) ;;
+              *)
+                echo "::error::DEPLOY_APP_DIR must be an absolute path (e.g. /home/deploy/apps/van3)"
+                exit 1
+                ;;
+            esac
+
             parent="$(dirname "$APP_DIR")"
-            if [ ! -d "$parent" ]; then
-              echo "::error::Parent directory missing on server: $parent — create it (e.g. sudo mkdir -p $APP_DIR && sudo chown $USER $APP_DIR)"
+            if ! mkdir -p "$parent"; then
+              echo "::error::Cannot mkdir $parent — fix permissions or pick a path under the SSH user home (e.g. /home/deploy/apps/van3)"
               exit 1
             fi
 

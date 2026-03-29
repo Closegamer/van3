@@ -62,7 +62,8 @@ node scripts/import_completed_to_yxxxxxx.mjs --file completed.txt
 2. **SSH:** в Actions-секрет `DEPLOY_SSH_KEY` вставьте **полный** приватный ключ (PEM), одной строкой с переносами как в файле. Публичный ключ — в `~/.ssh/authorized_keys` на сервере.
 3. **PAT:** создайте [Personal Access Token](https://github.com/settings/tokens) с правом **Contents: Read** (или классический `repo` для приватного репозитория). Секрет **`GH_REPO_TOKEN`** — для `git clone`/`fetch` по HTTPS на сервере.
 4. **Секреты** (Settings → Secrets and variables → Actions): заполните таблицу из `README.md`. Порт SSH: если не задан `DEPLOY_PORT`, в workflow подставляется **22**; для нестандартного порта задайте секрет явно.
-5. **Первый деплой:** запушьте в `main` или запустите workflow вручную (**Actions** → **CI/CD** → **Run workflow**).
+5. **`DEPLOY_APP_DIR`:** только **абсолютный** путь (начинается с `/`). Деплой сам выполняет `mkdir -p` для родителя (например для `/home/deploy/apps/van3` создаётся `.../apps`). Пользователь SSH должен иметь право писать туда; надёжный вариант — каталог **в home**, например `/home/deploy/apps/van3`. Путь вида `/opt/van3` без прав у пользователя на `/opt` даст ошибку — тогда один раз на сервере: `sudo mkdir -p /opt/van3 && sudo chown deploy:deploy /opt/van3` (подставьте своего пользователя).
+6. **Первый деплой:** запушьте в `main` или запустите workflow вручную (**Actions** → **CI/CD** → **Run workflow**).
 
 После деплоя на машине с `run_van.ps1` в `.env` укажите `VAN_DB_HOST` (IP/DNS сервера), `VAN_DB_PORT` (как опубликован Postgres, см. `VAN_POSTGRES_PUBLISH`), `VAN_DB_PASSWORD` = тот же пароль, что в секрете **`VAN_POSTGRES_PASSWORD`** (он же попадает в `POSTGRES_PASSWORD` в контейнере).
 
