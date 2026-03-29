@@ -28,6 +28,7 @@ PowerShell-оркестратор `run_van.ps1`, учёт диапазонов �
 | `DEPLOY_HOST` | IP/DNS сервера (например `YOUR_SERVER_IP`) |
 | `DEPLOY_USER` | SSH-пользователь |
 | `DEPLOY_SSH_KEY` | Приватный ключ (весь PEM) |
+| `DEPLOY_SSH_KEY_PASSPHRASE` | Опционально: пароль от ключа, если при генерации задавался passphrase (иначе SSH в Actions не залогинится) |
 | `DEPLOY_PORT` | SSH-порт; если не задать, в workflow используется `22` |
 | `DEPLOY_APP_DIR` | Каталог на сервере (например `/opt/van3`) |
 | `GH_REPO_TOKEN` | PAT с `repo` для `git clone` по HTTPS |
