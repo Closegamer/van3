@@ -1,0 +1,60 @@
+# van3 — VanitySearch + PostgreSQL (vandb)
+
+PowerShell-оркестратор `run_vanity.ps1`, учёт диапазонов в PostgreSQL, Docker-стек только с **Postgres** (`vandb`), импорт `completed.txt` в таблицу `yxxxxxx`.
+
+## Локально
+
+- `run_vanity.bat` / `run_vanity.ps1` — рядом нужны `VanitySearch.exe`, опционально `.env` (см. `.env.example`).
+- Импорт в БД: `npm run import-completed` или `.\Import-CompletedToYxxxxxx.ps1`.
+
+## Docker
+
+См. `DEPLOY.md`. Кратко: `cp .env.docker.example .env.docker`, правка пароля, `docker compose --env-file .env.docker up -d`.
+
+## CI/CD (как у mdelayrepoplus)
+
+При пуше в **`main`** GitHub Actions:
+
+1. **CI** — проверка `docker compose config`, синтаксис Node-скриптов.
+2. **Deploy** — SSH на сервер, `git clone` / `git fetch` + `reset --hard origin/main`, запись **`.env.docker`** из секретов, `docker compose up -d`.
+
+### Секреты репозитория (Settings → Secrets → Actions)
+
+Те же идеи, что в **mdelayrepoplus**:
+
+| Секрет | Назначение |
+|--------|------------|
+| `DEPLOY_HOST` | IP/DNS сервера (например `YOUR_SERVER_IP`) |
+| `DEPLOY_USER` | SSH-пользователь |
+| `DEPLOY_SSH_KEY` | Приватный ключ (весь PEM) |
+| `DEPLOY_PORT` | SSH-порт (часто `22`) |
+| `DEPLOY_APP_DIR` | Каталог на сервере (например `/opt/van3`) |
+| `GH_REPO_TOKEN` | PAT с `repo` для `git clone` по HTTPS |
+
+Отдельно для Postgres в Docker:
+
+| Секрет | Назначение |
+|--------|------------|
+| `VANITY_POSTGRES_USER` | Обычно `vanuser` |
+| `VANITY_POSTGRES_PASSWORD` | Пароль суперпользователя БД в контейнере |
+| `VANITY_POSTGRES_DB` | Обычно `vandb` |
+| `VANITY_POSTGRES_PUBLISH` | Порт хоста, например `5432` или `55432`, если `5432` занят |
+
+На сервере нужны **Git** и **Docker Compose v2** (`docker compose`).
+
+### Первый пуш
+
+```bash
+git init
+git add .
+git commit -m "Initial commit"
+git branch -M main
+git remote add origin https://github.com/<USER>/<REPO>.git
+git push -u origin main
+```
+
+PAT в `GH_REPO_TOKEN` должен иметь доступ к этому репозиторию.
+
+## Переменные для `run_vanity.ps1` с удалённой БД
+
+В `.env` на машине, где крутится поиск: `VANITY_DB_HOST`, `VANITY_DB_PORT` (как в `VANITY_POSTGRES_PUBLISH`), `VANITY_DB_PASSWORD` = тот же, что `VANITY_POSTGRES_PASSWORD`, и т.д. (см. `.env.example`).

@@ -1,0 +1,8 @@
+node_modules
+.git
+.env
+.env.docker
+*.exe
+output.txt
+started.txt
+completed.txt

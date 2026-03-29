@@ -1,0 +1,86 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose
+        run: |
+          set -e
+          cp .env.docker.example .env.docker
+          sed -i 's/change_me_strong_password/ci_validation_only/' .env.docker
+          docker compose --env-file .env.docker config >/dev/null
+
+      - name: Check Node scripts (syntax)
+        run: |
+          node --check scripts/import_completed_to_yxxxxxx.mjs
+          node --check scripts/provision_vandb.mjs
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: ci
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          POSTGRES_USER: ${{ secrets.VANITY_POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.VANITY_POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.VANITY_POSTGRES_DB }}
+          VANITY_POSTGRES_PUBLISH: ${{ secrets.VANITY_POSTGRES_PUBLISH }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          envs: POSTGRES_USER,POSTGRES_PASSWORD,POSTGRES_DB,VANITY_POSTGRES_PUBLISH
+          script_stop: true
+          script: |
+            set -eu
+            APP_DIR="${{ secrets.DEPLOY_APP_DIR }}"
+            REPO_URL="https://x-access-token:${{ secrets.GH_REPO_TOKEN }}@github.com/${{ github.repository }}.git"
+
+            if [ ! -d "$APP_DIR/.git" ]; then
+              rm -rf "$APP_DIR"
+              git clone "$REPO_URL" "$APP_DIR"
+            fi
+
+            cd "$APP_DIR"
+            git remote set-url origin "$REPO_URL"
+            git fetch origin main
+            git reset --hard origin/main
+
+            write_env_docker() {
+              key="$1"
+              val="$2"
+              clean="$(printf '%s' "$val" | tr '\r\n' ' ' | sed 's/[[:space:]]\+$//')"
+              printf '%s=%s\n' "$key" "$clean" >> .env.docker
+            }
+
+            : > .env.docker
+            write_env_docker POSTGRES_USER "${POSTGRES_USER:-vanuser}"
+            write_env_docker POSTGRES_PASSWORD "$POSTGRES_PASSWORD"
+            write_env_docker POSTGRES_DB "${POSTGRES_DB:-vandb}"
+            write_env_docker VANITY_POSTGRES_PUBLISH "${VANITY_POSTGRES_PUBLISH:-5432}"
+
+            if docker compose version >/dev/null 2>&1; then
+              docker compose --env-file .env.docker up -d --remove-orphans
+              docker compose --env-file .env.docker ps
+            else
+              set -a
+              # shellcheck disable=SC1090
+              . ./.env.docker
+              set +a
+              docker-compose up -d --remove-orphans
+              docker-compose ps
+            fi
