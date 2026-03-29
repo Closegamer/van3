@@ -59,7 +59,23 @@ node scripts/import_completed_to_yxxxxxx.mjs --file completed.txt
 ### Чеклист настройки
 
 1. **Сервер:** установлены **Git** (`apt install git`), **Docker** и плагин Compose v2 (`docker compose`). Пользователь из `DEPLOY_USER` может писать в `DEPLOY_APP_DIR` и выполнять **`docker info`** без sudo (иначе CI падает с ошибкой про Docker: `sudo usermod -aG docker <имя_пользователя>`, затем новый сеанс SSH).
-2. **SSH:** в Actions-секрет `DEPLOY_SSH_KEY` вставьте **полный** приватный ключ (PEM), одной строкой с переносами как в файле. Публичный ключ — в `~/.ssh/authorized_keys` на сервере. Если при создании ключа был **passphrase**, добавьте секрет **`DEPLOY_SSH_KEY_PASSPHRASE`** с этой фразой; иначе в логе будет `private key is passphrase protected` / `unable to authenticate`. Альтернатива без passphrase: отдельная пара ключей только для CI (`ssh-keygen -t ed25519 -N "" -f github_deploy`) и только её публичный ключ на сервер.
+2. **SSH / ключ без passphrase (рекомендуется для Actions):** на своём ПК в корне репозитория уже можно сгенерировать отдельную пару только для CI (файлы в `.gitignore`):
+
+   ```bash
+   ssh-keygen -q -t ed25519 -f .van3-github-ci-deploy -C "van3-github-actions" -N ""
+   ```
+
+   - **Публичный** ключ (одна строка из `.van3-github-ci-deploy.pub`) добавьте на сервер в `~/.ssh/authorized_keys` пользователя деплоя (например `deploy`), владелец каталога `.ssh` и права `700` на `.ssh`, `600` на `authorized_keys`:
+
+   ```bash
+   mkdir -p ~/.ssh && chmod 700 ~/.ssh
+   echo 'ssh-ed25519 AAAA...your.public.key... van3-github-actions' >> ~/.ssh/authorized_keys
+   chmod 600 ~/.ssh/authorized_keys
+   ```
+
+   - **Приватный** ключ: откройте файл `.van3-github-ci-deploy`, скопируйте целиком (включая `BEGIN` / `END`) в секрет **`DEPLOY_SSH_KEY`**. Секрет **`DEPLOY_SSH_KEY_PASSPHRASE`** не создавайте.
+
+   Любой другой PEM без пароля тоже подходит. Если ключ **с** passphrase — задайте **`DEPLOY_SSH_KEY_PASSPHRASE`**.
 3. **PAT:** создайте [Personal Access Token](https://github.com/settings/tokens) с правом **Contents: Read** (или классический `repo` для приватного репозитория). Секрет **`GH_REPO_TOKEN`** — для `git clone`/`fetch` по HTTPS на сервере.
 4. **Секреты** (Settings → Secrets and variables → Actions): заполните таблицу из `README.md`. Порт SSH: если не задан `DEPLOY_PORT`, в workflow подставляется **22**; для нестандартного порта задайте секрет явно.
 5. **`DEPLOY_APP_DIR`:** только **абсолютный** путь (начинается с `/`). Деплой сам выполняет `mkdir -p` для родителя (например для `/home/deploy/apps/van3` создаётся `.../apps`). Пользователь SSH должен иметь право писать туда; надёжный вариант — каталог **в home**, например `/home/deploy/apps/van3`. Путь вида `/opt/van3` без прав у пользователя на `/opt` даст ошибку — тогда один раз на сервере: `sudo mkdir -p /opt/van3 && sudo chown deploy:deploy /opt/van3` (подставьте своего пользователя).

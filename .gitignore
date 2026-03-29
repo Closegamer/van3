@@ -6,3 +6,7 @@ completed.txt
 output.txt
 started.txt
 *.dat
+
+# Локальная пара только для GitHub Actions (не коммитить приватный ключ)
+.van3-github-ci-deploy
+.van3-github-ci-deploy.pub
