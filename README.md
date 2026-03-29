@@ -5,6 +5,7 @@ PowerShell-оркестратор `run_van.ps1`, учёт диапазонов �
 ## Локально
 
 - `run_van.bat` / `run_van.ps1` — рядом нужны `VanSearch.exe`, опционально `.env` (см. `.env.example`).
+- Упаковка **только для воркеров** (рядом с репо): **`.\scripts\publish_van3_client.ps1`** → каталог **`van3_client`** (см. `packaging/van3_client/README.md`).
 - **Несколько ПК, одна PostgreSQL:** в `.env` задайте `VAN_DB_HOST`, `VAN_DB_PORT`, `VAN_DB_PASSWORD` (и при необходимости `VAN_WORKER_ID`). Режим базы включается сам; **пройденные диапазоны** берутся из **`van_ranges`** (файл `completed.txt` не используется, кроме **`started.txt`** для возобновления). Старый режим «файл + БД»: `VAN_USE_LOCAL_COMPLETED_FILE=1` или `run_van.ps1 -UseLocalCompletedFile`.
 - Импорт в БД: `npm run import-completed` или `.\Import-CompletedToYxxxxxx.ps1`. При блокировке `.ps1` смотри **DEPLOY.md** (Bypass / `node scripts/...`). Первый раз с БД для **`run_van.ps1`**: добавь **`--van-ranges`** или **`-VanRanges`**.
 

@@ -15,6 +15,10 @@
 
 На Linux удобно: `make up` / `make logs` (см. `Makefile`).
 
+## Клиент на других ПК (`van3_client`)
+
+Рядом с клоном **van3** каталог **`van3_client`**: только `run_van.ps1`, `run_van.bat`, `.env.example`, `README.md` — воркер на любой Windows-машине (плюс вручную **`VanSearch.exe`** и **`.env`**). Собрать/обновить из репозитория: **`.\scripts\publish_van3_client.ps1`** (лежит на уровень выше `van3`, не затирает `.env` и `*.exe` в `van3_client`).
+
 ## Подключение `run_van.ps1`
 
 В `.env` (рядом со скриптом) укажите хост, куда опубликован порт 5432:
