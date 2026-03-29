@@ -65,6 +65,9 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.VAN_POSTGRES_PASSWORD }}
           POSTGRES_DB: ${{ secrets.VAN_POSTGRES_DB }}
           VAN_POSTGRES_PUBLISH: ${{ secrets.VAN_POSTGRES_PUBLISH }}
+          DEPLOY_APP_DIR: ${{ secrets.DEPLOY_APP_DIR }}
+          DEPLOY_GH_TOKEN: ${{ secrets.GH_REPO_TOKEN }}
+          DEPLOY_REPO_SLUG: ${{ github.repository }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
@@ -72,21 +75,18 @@ jobs:
           passphrase: ${{ secrets.DEPLOY_SSH_KEY_PASSPHRASE }}
           port: ${{ secrets.DEPLOY_PORT || '22' }}
           command_timeout: 30m
-          envs: POSTGRES_USER,POSTGRES_PASSWORD,POSTGRES_DB,VAN_POSTGRES_PUBLISH
+          envs: POSTGRES_USER,POSTGRES_PASSWORD,POSTGRES_DB,VAN_POSTGRES_PUBLISH,DEPLOY_APP_DIR,DEPLOY_GH_TOKEN,DEPLOY_REPO_SLUG
           script_stop: true
           script: |
             set -e
             export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
-            APP_DIR="${{ secrets.DEPLOY_APP_DIR }}"
-            REPO_URL="https://x-access-token:${{ secrets.GH_REPO_TOKEN }}@github.com/${{ github.repository }}.git"
+            APP_DIR="$DEPLOY_APP_DIR"
+            REPO_URL="https://x-access-token:${DEPLOY_GH_TOKEN}@github.com/${DEPLOY_REPO_SLUG}.git"
 
-            case "$APP_DIR" in
-              /*) ;;
-              *)
-                echo "::error::DEPLOY_APP_DIR must be an absolute path (e.g. /home/deploy/apps/van3)"
-                exit 1
-                ;;
-            esac
+            if [ -z "$APP_DIR" ] || [ "${APP_DIR#/}" = "$APP_DIR" ]; then
+              echo "::error::DEPLOY_APP_DIR must be a non-empty absolute path (e.g. /home/deploy/apps/van3)"
+              exit 1
+            fi
 
             if ! command -v git >/dev/null 2>&1; then
               echo "::error::git is not installed on the server (sudo apt install git)"
