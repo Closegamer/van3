@@ -40,11 +40,10 @@ function Invoke-RemoteScp {
 }
 
 Write-Host "Каталог на сервере: $RemotePath" -ForegroundColor Cyan
-Invoke-RemoteSsh @($Target, "mkdir -p $RemotePath/docker/initdb")
+Invoke-RemoteSsh @($Target, "mkdir -p $RemotePath")
 
 Invoke-RemoteScp (Join-Path $root "docker-compose.yml") "${Target}:$RemotePath/"
 Invoke-RemoteScp (Join-Path $root ".env.docker") "${Target}:$RemotePath/"
-Invoke-RemoteScp (Join-Path $root "docker/initdb/010_van_ranges.sql") "${Target}:$RemotePath/docker/initdb/"
 
 $cmd = "cd $RemotePath && docker compose --env-file .env.docker pull 2>/dev/null; docker compose --env-file .env.docker up -d && docker compose --env-file .env.docker ps"
 Write-Host "docker compose up -d ..." -ForegroundColor Cyan

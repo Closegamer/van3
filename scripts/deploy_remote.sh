@@ -14,7 +14,6 @@ fi
 
 cd "$ROOT"
 rsync -avz -e ssh docker-compose.yml .env.docker "$TARGET:$RDIR/"
-rsync -avz -e ssh docker/initdb/ "$TARGET:$RDIR/docker/initdb/"
 
 ssh "$TARGET" "cd '$RDIR' && docker compose --env-file .env.docker pull 2>/dev/null || true; docker compose --env-file .env.docker up -d && docker compose --env-file .env.docker ps"
 
